@@ -1,22 +1,26 @@
-let video = document.getElementById("video");
-let canvas = document.body.appendChild(document.createElement("canvas"));
-let ctx = canvas.getContext("2d");
-let displaySize;
+// Inisialisasi kamera dan canvas
+let kamera = document.getElementById("video");
+let outputCanvas = document.body.appendChild(document.createElement("canvas"));
+let konteks = outputCanvas.getContext("2d");
+let ukuranTampilan;
 
-let width = 1280;
-let height = 720;
+let lebarLayar = 1280;
+let tinggiLayar = 720;
 
-const startSteam = () => {
-    console.log("----- START STEAM ------");
+// Memulai kamera
+const mulaiKamera = () => {
+    console.log("----- KAMERA DIMULAI ------");
     navigator.mediaDevices.getUserMedia({
-        video: {width, height},
-        audio : false
-    }).then((steam) => {video.srcObject = steam});
+        video: { width: lebarLayar, height: tinggiLayar },
+        audio: false
+    }).then((aliran) => {
+        kamera.srcObject = aliran;
+    });
 }
 
 console.log(faceapi.nets);
 
-console.log("----- START LOAD MODEL ------");
+console.log("----- MEMUAT MODEL ------");
 Promise.all([
     faceapi.nets.ageGenderNet.loadFromUri('models'),
     faceapi.nets.ssdMobilenetv1.loadFromUri('models'),
@@ -24,37 +28,35 @@ Promise.all([
     faceapi.nets.faceLandmark68Net.loadFromUri('models'),
     faceapi.nets.faceRecognitionNet.loadFromUri('models'),
     faceapi.nets.faceExpressionNet.loadFromUri('models')
-]).then(startSteam);
+]).then(mulaiKamera);
 
+async function deteksiWajah() {
+    const deteksi = await faceapi.detectAllFaces(kamera)
+        .withFaceLandmarks()
+        .withFaceExpressions()
+        .withAgeAndGender();
 
-async function detect() {
-    const detections = await faceapi.detectAllFaces(video)
-                                .withFaceLandmarks()
-                                .withFaceExpressions()
-                                .withAgeAndGender();
-    //console.log(detections);
-    
-    ctx.clearRect(0,0, width, height);
-    const resizedDetections = faceapi.resizeResults(detections, displaySize)
-    faceapi.draw.drawDetections(canvas, resizedDetections);
-    faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
-    faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
+    konteks.clearRect(0, 0, lebarLayar, tinggiLayar);
+    const deteksiDiperkecil = faceapi.resizeResults(deteksi, ukuranTampilan);
+    faceapi.draw.drawDetections(outputCanvas, deteksiDiperkecil);
+    faceapi.draw.drawFaceLandmarks(outputCanvas, deteksiDiperkecil);
+    faceapi.draw.drawFaceExpressions(outputCanvas, deteksiDiperkecil);
 
-    console.log(resizedDetections);
-    resizedDetections.forEach(result => {
-        const {age, gender, genderProbability} = result;
-        new faceapi.draw.DrawTextField ([
-            `${Math.round(age,0)} Tahun`,
+    console.log(deteksiDiperkecil);
+    deteksiDiperkecil.forEach(hasil => {
+        const { age, gender, genderProbability } = hasil;
+        new faceapi.draw.DrawTextField([
+            `${Math.round(age)} Tahun`, // Perbaikan di sini
             `${gender} ${Math.round(genderProbability)}`
         ],
-        result.detection.box.bottomRight
-        ).draw(canvas);
+            hasil.detection.box.bottomRight
+        ).draw(outputCanvas);
     });
 }
 
-video.addEventListener('play', ()=> {
-    displaySize = {width, height};
-    faceapi.matchDimensions(canvas, displaySize);
+kamera.addEventListener('play', () => {
+    ukuranTampilan = { width: lebarLayar, height: tinggiLayar };
+    faceapi.matchDimensions(outputCanvas, ukuranTampilan);
 
-    setInterval(detect, 100);
+    setInterval(deteksiWajah, 100);
 })
